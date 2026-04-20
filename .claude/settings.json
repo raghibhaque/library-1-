@@ -6,7 +6,9 @@
       "Bash(mvn compile *)",
       "Bash(apt-cache search *)",
       "Bash(sudo apt-get *)",
-      "Bash(sudo -S apt-get install -y openjdk-25-jdk)"
+      "Bash(sudo -S apt-get install -y openjdk-25-jdk)",
+      "Bash(chmod u+w src/main/java/monty/library/LibraryApplication.java src/main/java/monty/library/LibraryGUI.java)",
+      "Bash(./mvnw compile *)"
     ]
   }
 }
