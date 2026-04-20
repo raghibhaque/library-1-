@@ -1,12 +1,12 @@
 package monty.library.kyle;
 
-public class book {
+public class Book {
         private String title;
         private String author;
         private int yearofPublication;
         private double isbn;
 
-        public book(String title, String author, int yearofPublication, double isbn) {
+        public Book(String title, String author, int yearofPublication, double isbn) {
             this.title = title;
             this.author = author;
             this.yearofPublication = yearofPublication;

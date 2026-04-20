@@ -1,6 +1,6 @@
 package monty.library;
 
-import monty.library.kyle.book;
+import monty.library.kyle.Book;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import java.util.Scanner;
@@ -10,7 +10,7 @@ public class LibraryApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(LibraryApplication.class, args);
-		book book;
+		Book book;
 		try (Scanner sc = new Scanner(System.in)) {
 			System.out.print("Enter book title: ");
 			String title = sc.nextLine();
@@ -20,7 +20,7 @@ public class LibraryApplication {
 			int yearofPublication = sc.nextInt();
 			System.out.print("Enter book ISBN: ");
 			double isbn = sc.nextDouble();
-			book = new book(title, author, yearofPublication, isbn);
+			book = new Book(title, author, yearofPublication, isbn);
 		}
 		System.out.println("Book Details:");
 		System.out.println("Title: " + book.getTitle());
