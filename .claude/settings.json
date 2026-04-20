@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(java -version)",
+      "Read(//usr/lib/jvm/**)",
+      "Bash(mvn compile *)",
+      "Bash(apt-cache search *)",
+      "Bash(sudo apt-get *)",
+      "Bash(sudo -S apt-get install -y openjdk-25-jdk)"
+    ]
+  }
+}
