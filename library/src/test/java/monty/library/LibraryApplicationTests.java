@@ -27,4 +27,20 @@ class LibraryApplicationTests {
 		assertEquals("", book.getTitle());
 
 	}
+	@Test
+	public void testBookWithBlankAuthor(){
+		Book book = new Book("The Great Gatsby", "" , 1925 , 9780743273565.0);
+		assertEquals("", book.getAuthor());
+	}
+	@Test
+	public void testBookWithNegativeYearOfPublication(){
+		Book book = new Book("The Great Gatsby", "F. Scott Fitzgerald" , -1925 , 9780743273565.0);
+		assertEquals(-1925, book.getYearofPublication());
+	}
+	@Test
+	public void testBookWithNegativeIsbn(){
+		Book book = new Book("The Great Gatsby", "F. Scott Fitzgerald" , 1925 , -9780743273565.0);
+		assertEquals(-9780743273565.0, book.getIsbn(), 0.0);
+	}
+	
 }
