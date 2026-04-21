@@ -10,9 +10,11 @@ import javax.swing.plaf.basic.BasicScrollBarUI;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Timer;
+import java.util.Set;
 
 public class LibraryGUI extends JFrame {
 
@@ -101,10 +103,8 @@ public class LibraryGUI extends JFrame {
         JPanel inputs = new JPanel(new GridLayout(1, 4, 10, 0));
         inputs.setOpaque(false);
         inputs.setBorder(new EmptyBorder(14, 0, 0, 0));
-        inputs.add(fTitle);
-        inputs.add(fAuthor);
-        inputs.add(fYear);
-        inputs.add(fIsbn);
+        inputs.add(fTitle); inputs.add(fAuthor);
+        inputs.add(fYear);  inputs.add(fIsbn);
         bottom.add(inputs, BorderLayout.CENTER);
 
         JButton removeBtn = ghostBtn("Remove");
@@ -127,11 +127,21 @@ public class LibraryGUI extends JFrame {
             @Override public void changedUpdate(DocumentEvent e) { applyFilter(searchField.getText()); }
         });
 
+        // Double-click → detail window
+        table.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() != 2) return;
+                int view = table.getSelectedRow();
+                if (view < 0) return;
+                showDetail(books.get(table.convertRowIndexToModel(view)));
+            }
+        });
+
         addBtn.addActionListener(e -> {
             try {
                 String t = fTitle.getText().trim(), a = fAuthor.getText().trim();
                 if (t.isEmpty() || a.isEmpty()) { shake(t.isEmpty() ? fTitle : fAuthor); return; }
-                int yr     = Integer.parseInt(fYear.getText().trim());
+                int yr      = Integer.parseInt(fYear.getText().trim());
                 double isbn = Double.parseDouble(fIsbn.getText().trim());
                 addBook(new Book(t, a, yr, isbn));
                 clearForm();
@@ -152,6 +162,119 @@ public class LibraryGUI extends JFrame {
         setSize(860, 600);
         setMinimumSize(new Dimension(720, 480));
         setLocationRelativeTo(null);
+    }
+
+    // ── Detail window ────────────────────────────────────────────
+
+    private void showDetail(Book book) {
+        JDialog d = new JDialog(this, false);
+        d.setUndecorated(true);
+
+        JPanel main = new JPanel(new BorderLayout(0, 0));
+        main.setBackground(SURFACE);
+        main.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(SEP),
+            new EmptyBorder(24, 28, 20, 28)
+        ));
+
+        // ── Top info ─────────────────────────────────────────────
+        JPanel info = new JPanel();
+        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
+        info.setOpaque(false);
+
+        // × button
+        JButton xBtn = new JButton("×");
+        xBtn.setFont(sysFont(20, Font.PLAIN));
+        xBtn.setForeground(MUTED);
+        xBtn.setOpaque(false); xBtn.setContentAreaFilled(false);
+        xBtn.setFocusPainted(false); xBtn.setBorderPainted(false);
+        xBtn.setBorder(new EmptyBorder(0, 0, 0, 0));
+        xBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        xBtn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { xBtn.setForeground(TEXT); }
+            @Override public void mouseExited(MouseEvent e)  { xBtn.setForeground(MUTED); }
+        });
+        xBtn.addActionListener(e -> d.dispose());
+
+        JPanel xRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        xRow.setOpaque(false);
+        xRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        xRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+        xRow.add(xBtn);
+
+        JSeparator divider = new JSeparator();
+        divider.setAlignmentX(Component.LEFT_ALIGNMENT);
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        divider.setForeground(SEP);
+
+        info.add(xRow);
+        info.add(Box.createVerticalStrut(8));
+        info.add(infoLabel(book.getTitle(), sysFont(20, Font.BOLD), TEXT));
+        info.add(Box.createVerticalStrut(6));
+        info.add(infoLabel(book.getAuthor() + "  ·  " + book.getYearofPublication(), F_BODY, MUTED));
+        info.add(Box.createVerticalStrut(3));
+        info.add(infoLabel("ISBN  " + (long) book.getIsbn(), F_SMALL, new Color(0x505054)));
+        info.add(Box.createVerticalStrut(18));
+        info.add(divider);
+
+        // ── Description ──────────────────────────────────────────
+        String descText = book.getDescription().isEmpty()
+            ? "No description available." : book.getDescription();
+
+        JTextArea desc = new JTextArea(descText);
+        desc.setFont(F_BODY);
+        desc.setForeground(new Color(0xBEBEC6));
+        desc.setBackground(SURFACE);
+        desc.setEditable(false);
+        desc.setLineWrap(true);
+        desc.setWrapStyleWord(true);
+        desc.setFocusable(false);
+        desc.setBorder(new EmptyBorder(16, 0, 0, 0));
+
+        JScrollPane descScroll = new JScrollPane(desc,
+            ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+            ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        descScroll.setBorder(null);
+        descScroll.setBackground(SURFACE);
+        descScroll.getViewport().setBackground(SURFACE);
+        descScroll.getVerticalScrollBar().setUI(new BasicScrollBarUI() {
+            @Override protected void configureScrollBarColors() {
+                thumbColor = new Color(0x48484A); trackColor = SURFACE;
+            }
+            @Override protected JButton createDecreaseButton(int o) { return tinyBtn(); }
+            @Override protected JButton createIncreaseButton(int o) { return tinyBtn(); }
+            private JButton tinyBtn() {
+                JButton b = new JButton(); b.setPreferredSize(new Dimension(0,0)); return b;
+            }
+        });
+
+        // ── Close button ─────────────────────────────────────────
+        JButton closeBtn = solidBtn("Close");
+        closeBtn.addActionListener(e -> d.dispose());
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnRow.setOpaque(false);
+        btnRow.setBorder(new EmptyBorder(14, 0, 0, 0));
+        btnRow.add(closeBtn);
+
+        // Escape to close
+        d.getRootPane().registerKeyboardAction(e -> d.dispose(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
+
+        main.add(info,       BorderLayout.NORTH);
+        main.add(descScroll, BorderLayout.CENTER);
+        main.add(btnRow,     BorderLayout.SOUTH);
+
+        d.setContentPane(main);
+        d.setSize(480, 340);
+        d.setLocationRelativeTo(this);
+        d.setVisible(true);
+    }
+
+    private static JLabel infoLabel(String text, Font font, Color color) {
+        JLabel l = new JLabel(text);
+        l.setFont(font); l.setForeground(color);
+        l.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return l;
     }
 
     // ── Table ────────────────────────────────────────────────────
@@ -225,15 +348,12 @@ public class LibraryGUI extends JFrame {
         sp.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         sp.getVerticalScrollBar().setUI(new BasicScrollBarUI() {
             @Override protected void configureScrollBarColors() {
-                thumbColor = new Color(0x48484A);
-                trackColor = SURFACE;
+                thumbColor = new Color(0x48484A); trackColor = SURFACE;
             }
             @Override protected JButton createDecreaseButton(int o) { return tinyBtn(); }
             @Override protected JButton createIncreaseButton(int o) { return tinyBtn(); }
             private JButton tinyBtn() {
-                JButton b = new JButton();
-                b.setPreferredSize(new Dimension(0, 0));
-                return b;
+                JButton b = new JButton(); b.setPreferredSize(new Dimension(0,0)); return b;
             }
         });
         return sp;
@@ -242,22 +362,39 @@ public class LibraryGUI extends JFrame {
     // ── Seed ─────────────────────────────────────────────────────
 
     private void seed() {
-        addBook(new Book("The Hobbit",               "J.R.R. Tolkien",       1937, 9780547928227.0));
-        addBook(new Book("1984",                     "George Orwell",        1949, 9780451524935.0));
-        addBook(new Book("To Kill a Mockingbird",    "Harper Lee",           1960, 9780061743528.0));
-        addBook(new Book("The Great Gatsby",         "F. Scott Fitzgerald",  1925, 9780743273565.0));
-        addBook(new Book("Brave New World",          "Aldous Huxley",        1932, 9780060850524.0));
-        addBook(new Book("The Catcher in the Rye",  "J.D. Salinger",        1951, 9780316769174.0));
-        addBook(new Book("Dune",                     "Frank Herbert",        1965, 9780441013593.0));
-        addBook(new Book("Fahrenheit 451",           "Ray Bradbury",         1953, 9781451673319.0));
-        addBook(new Book("The Name of the Wind",     "Patrick Rothfuss",     2007, 9780756404741.0));
-        addBook(new Book("Clean Code",               "Robert C. Martin",     2008, 9780132350884.0));
-        addBook(new Book("The Pragmatic Programmer", "David Thomas",         1999, 9780135957059.0));
-        addBook(new Book("Sapiens",                  "Yuval Noah Harari",    2011, 9780062316097.0));
-        addBook(new Book("Thinking, Fast and Slow",  "Daniel Kahneman",      2011, 9780374533557.0));
-        addBook(new Book("The Alchemist",            "Paulo Coelho",         1988, 9780062315007.0));
-        addBook(new Book("Crime and Punishment",     "Fyodor Dostoevsky",    1866, 9780143107637.0));
+        addBook(new Book("The Hobbit", "J.R.R. Tolkien", 1937, 9780547928227.0,
+            "Bilbo Baggins, a comfort-loving hobbit, is swept into an epic quest to reclaim the Lonely Mountain from the dragon Smaug. Joining a company of thirteen dwarves and the wizard Gandalf, he discovers courage and cunning he never knew he had. Along the way he stumbles upon a mysterious ring that will change the fate of Middle-earth forever."));
+        addBook(new Book("1984", "George Orwell", 1949, 9780451524935.0,
+            "In a totalitarian future ruled by the omniscient Party, Winston Smith secretly begins to rebel against Big Brother's surveillance state. A searing portrait of propaganda, doublethink, and the systematic destruction of truth and individuality. Orwell's masterwork remains one of the most urgent and chilling novels ever written."));
+        addBook(new Book("To Kill a Mockingbird", "Harper Lee", 1960, 9780061743528.0,
+            "Seen through the eyes of young Scout Finch in 1930s Alabama, this Pulitzer Prize-winning novel follows her father Atticus as he defends a Black man falsely accused of a crime. A profound and moving exploration of racial injustice, moral courage, and the loss of innocence. One of the defining works of American literature."));
+        addBook(new Book("The Great Gatsby", "F. Scott Fitzgerald", 1925, 9780743273565.0,
+            "Narrator Nick Carraway is drawn into the world of his mysterious neighbour Jay Gatsby, who throws lavish parties in pursuit of the elusive Daisy Buchanan. A glittering yet melancholy critique of the American Dream and the hollow glamour of the Jazz Age. Fitzgerald's prose shimmers with beauty and moral precision."));
+        addBook(new Book("Brave New World", "Aldous Huxley", 1932, 9780060850524.0,
+            "In a scientifically perfected World State, citizens are engineered, conditioned, and kept perpetually content. When a 'Savage' raised outside the system enters this utopia, its fragile illusions begin to crack. Huxley's prophetic satire of consumerism, pleasure, and social control feels startlingly modern."));
+        addBook(new Book("The Catcher in the Rye", "J.D. Salinger", 1951, 9780316769174.0,
+            "Sixteen-year-old Holden Caulfield wanders New York City after being expelled from prep school, wrestling with grief, alienation, and the phoniness of adult life. Salinger's raw, intimate voice captures adolescent disillusionment with startling honesty. One of the most debated and beloved novels in American literature."));
+        addBook(new Book("Dune", "Frank Herbert", 1965, 9780441013593.0,
+            "On the desert planet Arrakis — the sole source of the universe's most precious substance — young Paul Atreides is thrust into a brutal web of political betrayal and religious prophecy. An intricate epic spanning ecology, power, and mysticism, Dune reshaped science fiction. Herbert created one of the most fully realized fictional universes ever committed to the page."));
+        addBook(new Book("Fahrenheit 451", "Ray Bradbury", 1953, 9781451673319.0,
+            "In a future America where books are forbidden and firemen burn them, Guy Montag begins to question everything about the society he serves. Bradbury's blazing novella is a fierce defence of literature, curiosity, and the human capacity for wonder. Written in just nine days on a rented typewriter, it endures as a cornerstone of dystopian fiction."));
+        addBook(new Book("The Name of the Wind", "Patrick Rothfuss", 2007, 9780756404741.0,
+            "Told in Kvothe's own words, this is the tale of a magically gifted young man who rises from poverty to become the most feared and legendary figure of his age. Rothfuss crafts a richly layered world with prose that reads like music. The Kingkiller Chronicle's opening volume is a modern fantasy landmark."));
+        addBook(new Book("Clean Code", "Robert C. Martin", 2008, 9780132350884.0,
+            "Robert C. Martin presents a practical philosophy for writing code that is not merely functional, but readable, elegant, and maintainable. Through hundreds of examples, 'Uncle Bob' illuminates the difference between code that works and code that endures. Essential reading for any software developer serious about their craft."));
+        addBook(new Book("The Pragmatic Programmer", "David Thomas", 1999, 9780135957059.0,
+            "Hunt and Thomas distil decades of programming experience into timeless wisdom for software craftsmen — from personal responsibility and career development to hands-on technical practices. First published in 1999, its insights remain as relevant as ever in the modern engineering landscape. A book that pays dividends every time you return to it."));
+        addBook(new Book("Sapiens", "Yuval Noah Harari", 2011, 9780062316097.0,
+            "From the Cognitive Revolution 70,000 years ago to the present day, Harari charts the sweeping history of our species with intellectual daring and sharp wit. He asks why Homo sapiens came to dominate the Earth and what that dominance costs us and other species. A provocative, wide-ranging journey through human history."));
+        addBook(new Book("Thinking, Fast and Slow", "Daniel Kahneman", 2011, 9780374533557.0,
+            "Nobel laureate Daniel Kahneman reveals the two systems that drive the way we think: the fast, intuitive System 1 and the slow, deliberate System 2. Drawing on decades of groundbreaking research, he exposes the hidden biases that shape our judgements and decisions. A transformative book that permanently changes how you see your own mind."));
+        addBook(new Book("The Alchemist", "Paulo Coelho", 1988, 9780062315007.0,
+            "Santiago, an Andalusian shepherd boy, sets out on a journey to find a treasure rumoured to lie near the Egyptian pyramids. Along the way he encounters a king, an alchemist, and the language of the universe itself. Coelho's beloved fable about following your dreams has sold over 150 million copies worldwide."));
+        addBook(new Book("Crime and Punishment", "Fyodor Dostoevsky", 1866, 9780143107637.0,
+            "Rodion Raskolnikov, a destitute student, commits a murder convinced he is above ordinary morality — then slowly unravels under the suffocating weight of his guilt. Dostoevsky's psychological masterpiece plunges into the depths of sin, suffering, and the possibility of redemption. Widely regarded as one of the greatest novels ever written."));
     }
+
+    // ── Data helpers ─────────────────────────────────────────────
 
     private void addBook(Book book) {
         books.add(book);
@@ -281,7 +418,7 @@ public class LibraryGUI extends JFrame {
         fTitle.setText(""); fAuthor.setText(""); fYear.setText(""); fIsbn.setText("");
     }
 
-    // ── Static component builders ─────────────────────────────────
+    // ── Component builders ───────────────────────────────────────
 
     private static JTextField inputField(String hint) {
         return new JTextField() {
@@ -305,8 +442,7 @@ public class LibraryGUI extends JFrame {
                 if (getText().isEmpty()) {
                     Graphics2D g3 = (Graphics2D) g.create();
                     g3.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                    g3.setColor(MUTED);
-                    g3.setFont(F_SMALL);
+                    g3.setColor(MUTED); g3.setFont(F_SMALL);
                     Insets ins = getInsets();
                     g3.drawString(hint, ins.left, getHeight() / 2 + 4);
                     g3.dispose();
@@ -346,8 +482,7 @@ public class LibraryGUI extends JFrame {
                 if (getText().isEmpty()) {
                     Graphics2D g3 = (Graphics2D) g.create();
                     g3.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                    g3.setColor(MUTED);
-                    g3.setFont(F_SMALL);
+                    g3.setColor(MUTED); g3.setFont(F_SMALL);
                     Insets ins = getInsets();
                     g3.drawString("Search", ins.left, getHeight() / 2 + 4);
                     g3.dispose();
@@ -375,12 +510,9 @@ public class LibraryGUI extends JFrame {
                 super.paintComponent(g);
             }
         };
-        b.setFont(F_BODY);
-        b.setForeground(Color.WHITE);
-        b.setOpaque(false);
-        b.setContentAreaFilled(false);
-        b.setFocusPainted(false);
-        b.setBorderPainted(false);
+        b.setFont(F_BODY); b.setForeground(Color.WHITE);
+        b.setOpaque(false); b.setContentAreaFilled(false);
+        b.setFocusPainted(false); b.setBorderPainted(false);
         b.setBorder(new EmptyBorder(9, 22, 9, 22));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return b;
@@ -388,12 +520,9 @@ public class LibraryGUI extends JFrame {
 
     private static JButton ghostBtn(String text) {
         JButton b = new JButton(text);
-        b.setFont(F_BODY);
-        b.setForeground(MUTED);
-        b.setOpaque(false);
-        b.setContentAreaFilled(false);
-        b.setFocusPainted(false);
-        b.setBorderPainted(false);
+        b.setFont(F_BODY); b.setForeground(MUTED);
+        b.setOpaque(false); b.setContentAreaFilled(false);
+        b.setFocusPainted(false); b.setBorderPainted(false);
         b.setBorder(new EmptyBorder(9, 16, 9, 16));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         b.addMouseListener(new MouseAdapter() {
