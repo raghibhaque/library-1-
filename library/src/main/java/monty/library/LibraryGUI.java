@@ -4,9 +4,12 @@ import monty.library.kyle.Book;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
@@ -32,6 +35,7 @@ public class LibraryGUI extends JFrame {
     private final List<Book> books = new ArrayList<>();
     private final DefaultTableModel tableModel;
     private final JLabel countLabel = new JLabel();
+    private TableRowSorter<DefaultTableModel> sorter;
 
     private final JTextField titleField  = field("Title");
     private final JTextField authorField = field("Author");
@@ -49,7 +53,7 @@ public class LibraryGUI extends JFrame {
         setContentPane(root);
 
         // ── Header ──────────────────────────────────────────────
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(16, 0));
         header.setOpaque(false);
         header.setBorder(new EmptyBorder(0, 0, 20, 0));
 
@@ -57,11 +61,19 @@ public class LibraryGUI extends JFrame {
         titleLabel.setFont(FONT_TITLE);
         titleLabel.setForeground(TEXT);
 
+        JTextField searchField = field("Search by title or author…");
+        searchField.setPreferredSize(new Dimension(220, 34));
+
         countLabel.setFont(FONT_SMALL);
         countLabel.setForeground(MUTED);
 
-        header.add(titleLabel,  BorderLayout.WEST);
-        header.add(countLabel,  BorderLayout.EAST);
+        JPanel headerRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        headerRight.setOpaque(false);
+        headerRight.add(searchField);
+        headerRight.add(countLabel);
+
+        header.add(titleLabel,   BorderLayout.WEST);
+        header.add(headerRight,  BorderLayout.EAST);
         root.add(header, BorderLayout.NORTH);
 
         // ── Table ────────────────────────────────────────────────
@@ -109,6 +121,9 @@ public class LibraryGUI extends JFrame {
             }
         });
 
+        sorter = new TableRowSorter<>(tableModel);
+        table.setRowSorter(sorter);
+
         JScrollPane scroll = new JScrollPane(table);
         scroll.setBorder(BorderFactory.createLineBorder(BORDER));
         scroll.getViewport().setBackground(SURFACE);
@@ -141,6 +156,12 @@ public class LibraryGUI extends JFrame {
         seed();
 
         // ── Listeners ────────────────────────────────────────────
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override public void insertUpdate(DocumentEvent e)  { applyFilter(searchField.getText()); }
+            @Override public void removeUpdate(DocumentEvent e)  { applyFilter(searchField.getText()); }
+            @Override public void changedUpdate(DocumentEvent e) { applyFilter(searchField.getText()); }
+        });
+
         addBtn.addActionListener(e -> {
             try {
                 String t = titleField.getText().trim();
@@ -156,10 +177,11 @@ public class LibraryGUI extends JFrame {
         });
 
         removeBtn.addActionListener(e -> {
-            int row = table.getSelectedRow();
-            if (row == -1) return;
-            books.remove(row);
-            tableModel.removeRow(row);
+            int viewRow = table.getSelectedRow();
+            if (viewRow == -1) return;
+            int modelRow = table.convertRowIndexToModel(viewRow);
+            books.remove(modelRow);
+            tableModel.removeRow(modelRow);
             updateCount();
         });
 
@@ -194,8 +216,24 @@ public class LibraryGUI extends JFrame {
         updateCount();
     }
 
+    private void applyFilter(String query) {
+        String q = query.trim();
+        if (q.isEmpty()) {
+            sorter.setRowFilter(null);
+        } else {
+            sorter.setRowFilter(RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(q), 0, 1));
+        }
+        updateCount();
+    }
+
     private void updateCount() {
-        countLabel.setText(books.size() + (books.size() == 1 ? " book" : " books"));
+        int visible = sorter.getViewRowCount();
+        int total   = books.size();
+        if (visible == total) {
+            countLabel.setText(total + (total == 1 ? " book" : " books"));
+        } else {
+            countLabel.setText(visible + " of " + total + " books");
+        }
     }
 
     private void clearForm() {
